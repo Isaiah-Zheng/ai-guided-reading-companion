@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reading Companion</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><span class="eyebrow">READ THE ORIGINAL · KEEP YOUR FLOW</span><h1>Reading Companion</h1><p>A little context. A clearer passage.</p></header>
+<main>
+<section class="input-section"><div class="row"><label for="passage">Your passage</label><button id="capture" class="secondary">Use selection</button></div>
+<textarea id="passage" maxlength="12000" rows="7" placeholder="Highlight text on a webpage, then use selection. For Kindle Cloud Reader, paste a passage here if capture is unavailable."></textarea>
+<div class="row hint"><span id="count">0 words</span><button id="clear" class="text-button">Clear passage</button></div>
+<div class="row controls"><label>Depth<select id="mode"><option>Light</option><option selected>Balanced</option><option>Deep</option></select></label><label>Your level<select id="level"><option>B1</option><option selected>B2</option><option>C1</option><option>C2</option></select></label><label>Explain in<select id="language"><option value="en">English</option><option value="zh">中文</option></select></label></div>
+<label class="check"><input type="checkbox" id="sentence-help"> Help with difficult sentences</label>
+<button id="guide" class="primary">Guide Me</button><button id="cancel" class="secondary" hidden>Cancel</button>
+<p class="hint">Guide Me sends this passage and your known words to your local backend and OpenAI. Passages are not saved.</p>
+</section>
+<p id="status" role="status" aria-live="polite">Select roughly 100–300 words to begin.</p>
+<div id="results"></div>
+<details class="memory"><summary>Known words <span id="known-count">0</span></summary><p class="hint">Stored on this device to reduce repeated explanations.</p><div id="known-list"></div><button id="reset-memory" class="secondary">Reset known words</button></details>
+<footer>A Active · B Recognition · C Literary · D Context<br>CEFR estimates are approximate. Background is model knowledge, not verified research.</footer>
+</main><script type="module" src="sidepanel.js"></script>
+</body></html>
