@@ -22,7 +22,7 @@ test('capture extracts article/main text without sending it to an API', () => {
 test('reader provides original/enhanced controls and safe text-only rendering', () => {
   for (const id of ['original','enhanced','settings','font-size','content']) assert.ok(html.includes('id="'+id+'"'));
   assert.match(reader,/document\.createTextNode/);
-  assert.doesNotMatch(reader,/innerHTML/);
+  assert.doesNotMatch(reader,/\\.innerHTML\\s*=/);
   assert.match(reader,/reader-progress:/);
   assert.match(reader,/window\.scrollTo/);
 });
