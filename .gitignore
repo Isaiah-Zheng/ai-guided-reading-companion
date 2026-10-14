@@ -1,9 +1,10 @@
-.venv/
 __pycache__/
+*.pyc
 .env
-*.zip
-sources/
-AGENTS.md
-.codex/
-.agents/
+.venv/
+node_modules/
 *.log
+*.before-local-ai
+*.before-pages
+test-artifacts/
+reader-preview.png

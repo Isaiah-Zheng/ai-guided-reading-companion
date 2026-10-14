@@ -1,108 +1,121 @@
-# AI Guided Reading Companion — MVP
+# AI Reading Tutor · v0.2
 
-Chrome Manifest V3 side panel + local Python FastAPI server. Built from the uploaded
-`作品与项目灵感.md` (2026-10-12). The previous chat exposed no recoverable implementation,
-so this workspace contains a fresh implementation of that specification.
+A runnable Chrome extension implementing the v2 Reader design. It is an early development build, not a finished high-coverage AI product.
 
-## Start on Windows
+## Try it in Chrome
 
-Run these commands from this project directory in PowerShell:
+1. Extract the ZIP into a permanent folder.
+2. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**.
+3. Select the **extension** folder (the one containing `manifest.json`).
+4. Pin **AI Reading Tutor**. Open a normal English article and click **Read with AI**.
+5. The article opens in a separate Reader tab. For unsupported pages, use **Import** to paste full text.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
-Copy-Item backend/.env.example backend/.env
-```
+To open the Reader without importing, use the extension's **Details → Extension options**. It starts with a short original sample, not an excerpt from Rubicon.
 
-1. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**,
-   and choose this project's `extension` folder. Chrome 116+ is required.
-2. Copy the extension's ID into `EXTENSION_ID` in `backend/.env`.
-3. Put your OpenAI API key in `OPENAI_API_KEY` in that same file. Never put it in
-   the extension, browser storage, or a committed file. `OPENAI_MODEL` defaults
-   to `gpt-4o-mini`; change it to a Responses/structured-output capable model
-   available to your API account. API billing is separate from ChatGPT.
-4. Start the server:
+## What works
 
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8001
-```
+- One-click extraction of visible text in ordinary semantic article/main pages; title, source, paragraph order, headings, and plain text are retained.
+- Full-text paste fallback; Original / Enhanced switch.
+- 20px body text, 10px gray Chinese notes, a 760px maximum column, adjustable text and note sizes.
+- Useful words underlined; entity labels only on their first annotated occurrence; low-reuse difficult words get short Chinese notes. No colored frequency highlighting.
+- Quick View and collapsed Detailed View. Useful words save only when details are opened. Encounters are deduplicated by article and location; repeated visits do not imply mastery.
+- Local article storage, paragraph annotation cache, contextual explanation cache, settings, reading-position restoration, article deletion, and wordbook removal.
+- A small hand-authored offline glossary with IPA and sample explanations. **It is not high-coverage, personalized, or context-aware AI.** Its Roman entity mappings suit the sample; generic ambiguous names such as Senate can be wrong in other contexts. Verify these against the article.
+- Optional AI batch annotation of nearby paragraphs, on-demand detailed explanations, and exact-span validation that prevents AI from rewriting source text.
+- Wikipedia summary retrieval on explicit request, cached locally with source links and ambiguity/error handling.
 
-Restart the server after editing `.env`. Keep this terminal running during use.
-The server must remain bound to loopback; this MVP is not a public hosting setup.
-`http://127.0.0.1:8001/health` reports status/configuration without revealing secrets.
+## Enable local AI
 
-## Use
+Open Ollama, then run `Start Local AI.cmd` from this project folder. Both Qwen3.5
+4B and 9B are already installed on this laptop. The backend listens on
+`http://127.0.0.1:8766` and defaults to Ollama; no cloud API key is needed.
 
-Pin the extension, select roughly 100–300 words on an ordinary webpage, click its
-toolbar button, then **Use selection** → **Guide Me**. Alternatively, right-click
-the highlighted passage → **Guide this selection**, then click **Guide Me** in
-the panel. This explicitly sends the selected passage, never the whole page.
+Reload AI Reading Tutor at `chrome://extensions`, then reload the Reader tab.
+Click **Aa**, choose **Local AI model**, and tick **Enable AI for this article**.
+Close settings to read. Nearby paragraphs are annotated one at a time. Click an
+annotated word for its meaning; expand **Detailed explanation** for context and
+an example. First startup or model switching takes longer.
 
-On Kindle Cloud Reader, try the same sequence. If text is not available as a
-normal selection, manually copy/paste a passage into the panel. No screenshot,
-DRM bypass, or protected-content extraction is implemented. Restricted Chrome
-pages, inaccessible cross-origin frames, and canvas-rendered readers may fail
-capture. Manual paste remains available.
+Changing models clears this article's AI annotation and explanation caches so
+the new model can analyze it. It retains the article, reading progress and wordbook.
+The backend also separates its caches by provider and model. It unloads the other
+Qwen model when switching. Annotation spans are validated against the original text.
 
-Choose Light (up to 3 words/2 context cards), Balanced (6/4), or Deep (10/6),
-and B1–C2 level. Sentence help is opt-in, capped at 1/2/4 sentences respectively.
-English/中文 changes explanations without another API call. Context cards show
-Chinese names and expandable background, with legend/uncertainty labels.
+Local AI is fallible; historical identities and IPA can be wrong. Wikipedia lookup
+remains an explicit separate network request. AI is off for each new article until
+you enable it. Text is stored locally as before.
 
-A = Active use; B = Recognition; C = Literary/rare; D = Context.
-Register and approximate CEFR are separate judgments. **I know this** stores a
-word locally and suppresses it in future guides. Remove words or reset memory
-in the panel. Preferences persist; passages and guides do not persist. A selected
-right-click passage is briefly held in Chrome session storage, consumed on panel
-load, and ignored after two minutes. No accounts, payment, or review scheduler.
+Cloud mode remains optional: set `AI_PROVIDER=openai`, `OPENAI_API_KEY` and
+`OPENAI_MODEL` in the backend's environment before starting it. That mode sends
+reading data to the provider and can incur charges.
 
-## Privacy and limits
-
-Only Guide Me calls the backend and paid LLM. The server does not store passages
-or log provider responses; Responses requests set `store: false`. Provider data
-handling policies still apply. Page text and model output are treated as untrusted;
-the UI renders text nodes, not model HTML. Exact quotes are filtered against the
-input, modes are capped server-side, and sentence opt-in is enforced server-side.
-
-The backend checks the exact extension Origin and restricts CORS. There is no
-provider key in extension code. Origin checks protect against ordinary web pages;
-they are not authentication against other local programs. Do not expose this server
-to the network. There is no public-server authentication or rate limiting.
-
-Background cards use model knowledge and are **not web-verified**; they can be
-wrong. Legend/uncertainty labels are model judgments. The original reading remains
-central; no full passage translation or summary is requested.
-
-## Verify
+## Local Reader preview
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py" -v
-node --test tests/extension.test.cjs
-node --check extension/background.js
-node --check extension/sidepanel.js
+python -m http.server 8080 --bind 127.0.0.1 --directory extension
 ```
 
-Backend tests mock the provider (no API charges), exercising strict output,
-Origin/CORS restrictions, validation, missing credentials, refusals, quota/error
-responses, timeout, quote grounding, known words, mode caps and sentence opt-in.
-Frontend tests run in a small simulated Chrome/DOM environment, covering capture,
-manual paste, request shape, failures and literal bilingual rendering.
+Open http://127.0.0.1:8080/reader.html. The preview uses its own local browser storage. Chrome article-import integration requires the installed extension.
 
-Browser acceptance checklist (requires your installed Chrome and reading session):
+## Checks
 
-- Load the extension with no manifest errors and open the side panel.
-- Select ordinary webpage text; test Use selection and the context menu.
-- With the backend/key configured, get a real guide and toggle EN/ZH.
-- Compare modes; opt in/out of sentence help; mark/remove a known word.
-- Stop backend and confirm a useful connection error; test cancel.
-- Try actual Kindle Cloud Reader selection; document whether paste is needed.
+```powershell
+node --test tests/core.test.js
+python -m unittest discover -s tests -p "test_*.py"
+```
 
-## Files and references
+## Current limits / next work
 
-- `extension/`: manifest, service worker, panel HTML/CSS/JS; no build step.
-- `backend/app.py`: validated schemas, prompt, local API and provider request.
-- `backend/.env.example`: configuration template (no secret).
-- `tests/`: backend integration tests and frontend simulated tests.
+Extraction is a DOM heuristic, not a universal article parser: dynamically loaded text, complex nested layouts, captions, tables, images, paywalls, login-only books, PDF, and EPUB are not guaranteed. It imports currently rendered accessible text; it does not bypass access controls. Original restores the **extracted text**, not the original website layout. Review the source if text appears incomplete.
 
-Implementation references: [Chrome Side Panel API](https://developer.chrome.com/docs/extensions/reference/api/sidePanel)
-and [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+Local annotation coverage is deliberately small. AI output remains fallible. Long individual paragraphs over 6,000 characters currently fall back to local support. Context-aware entity disambiguation, broader local vocabulary data, accessible larger-note defaults, robust article extraction, provider budgeting, and multi-site import testing are the next engineering milestones. This build has no accounts, cross-device sync, voice, or subscriptions.
+
+Permission rationale: `activeTab` and `scripting` import the page only after a toolbar click; `storage` saves reading data; localhost allows the optional backend; English Wikipedia allows requested encyclopedia summaries. No background reading of unrelated tabs.
+
+Development references: [Chrome activeTab](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab), [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
+
+## Keep pasting into one book
+
+Open your book from Articles, then choose **Add text to this book**. Paste the
+next part and click **Save to this book**. The title and book ID stay the same;
+new paragraphs are appended after the old text and saved in Chrome local storage.
+Existing annotations, wordbook and reading position are retained. Continue adding
+parts until the book is complete. Use **New book / article** only for another work.
+Reloading the page or restarting Chrome retains successfully saved text; removing
+the extension or clearing its storage removes that data.
+
+
+## Version 0.3: pages and webpage mode
+
+Reload the extension once after updating. Existing stored books migrate into one
+legacy page because old paste boundaries were not recorded. Future pastes each
+become one page. Original pasted text is retained; oversized paragraphs are
+arranged into smaller display blocks at sentence/word boundaries.
+
+Reader shortcuts: Ctrl+V outside a text box opens a new-page preview; Ctrl+Enter
+saves it. Previous/Next turns pages. Manage pages supports labels, order, deletion
+and restoration. Pages remain saved even if AI fails. When AI is enabled, the
+current page stays hidden until all its blocks finish. Retry resumes cached blocks;
+Read without AI is an explicit alternative. Analysis uses the local model.
+
+Click the extension toolbar icon for the popup. Toggle word help on this webpage
+or use Alt+Shift+R (customizable at chrome://extensions/shortcuts). Hover over a
+word for a bilingual meaning; click for value, detail and Known/Learning controls.
+Web mode sends only the selected word and nearby context through the extension
+worker to localhost. It does not import the page or require access to all websites.
+Cached context-specific lookups are immediate; uncached lookups show Loading.
+Webpage access needs a user gesture on each new page. Restricted pages, PDFs,
+canvas text and inaccessible Kindle frames may not provide readable text.
+
+Learning status is user marked, separate from learning value. Browser storage
+holds pages and history; uninstalling or clearing extension data removes them.
+
+The new-page preview includes insertion position: before page 1, between any
+two pages, or at the end. The default is after the currently open page. Stable
+page IDs keep annotations and word encounters attached when order changes.
+
+Standalone chapter/part/book labels, uppercase headings and Markdown heading
+lines are recognized automatically. Missing formatting can use AI suggested
+sections, clearly labeled separately from original text. Click a heading to edit
+its display label. Suggested sections can be disabled in Aa. Chapter numbering
+is never invented. Full raw pasted text remains saved unchanged.

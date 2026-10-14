@@ -1,22 +1,25 @@
-# Verification record
+# Version 0.3 verification — 2026-10-14
 
-Tested on 2026-10-12 in Windows with Python 3.13 and Node.
+The isolated headless browser check passed: long pasted text split into display
+blocks while raw text stayed intact; each paste saved as one page; insertion
+before another page; page persistence after reload; delete/restore; next-page
+navigation; mobile width; Ctrl+V preview and Ctrl+Enter save; AI loading hidden
+text until all blocks finished; explicit Read without AI on failure; webpage
+hover/click popup. Web and page model responses were simulated in browser QA.
 
-- 9 backend tests: pass (mocked provider, real FastAPI request handling).
-- 4 frontend tests: pass (simulated Chrome APIs and DOM).
-- Both extension JavaScript files: syntax checks pass.
-- Strict JSON Schema checked recursively: all object properties required,
-  additionalProperties false, including nested bilingual/context/vocabulary fields.
-- Dependencies installed in project-local `.venv`.
+Backend/core regression tests cover original text anchoring, cache separation,
+local model switching and original reading data. Additional page tests cover
+legacy migration, raw-text preservation, stable ids, reordering and restoration.
 
-User screenshots subsequently confirmed extension installation, backend startup,
-and a successful health request on port 8001. Initial guide requests returned 403;
-the duplicated extension-ID setting was corrected afterward.
+Run `node --test tests/*.test.js` and
+`python -m unittest discover -s tests -p "test_*.py"`.
+For isolated browser QA, serve extension on localhost:8093, install Playwright
+or set PLAYWRIGHT_MODULE, then run `node tests/v3-browser-check.cjs`.
 
-Not verified: successful Chrome selection capture/side-panel user gestures,
-signed-in Kindle Cloud Reader selection behavior, or a live OpenAI guide response.
-The simulated tests do not establish those browser integration behaviors.
-Follow the acceptance checklist in README.md to verify them on your machine.
+Live local word lookup is verified separately through /lookup. Real Kindle
+canvas/frame compatibility is not established by these checks.
 
-No synced source files were modified. The original inspiration file was read from
-the previous chat's temporary attachment preview.
+Live Qwen3.5 4B checks passed for /lookup (English meaning, Chinese gloss,
+learning value) and /outline (valid suggested-section structure). Recognized
+chapter labels and editable suggested headings are included in this release.
+Legacy cloud backend tests are retained in test_cloud_backend.py.

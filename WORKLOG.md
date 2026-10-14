@@ -24,3 +24,14 @@ Setup troubleshooting:
 Verification: 9 mocked-provider backend tests and 4 simulated frontend tests passed,
 plus JavaScript syntax checks. A live successful guide and Kindle selection capture
 remain unverified. See README.md for setup and browser acceptance checks.
+
+## 2026-10-14 — Reader v0.3
+
+Updated the user-selected Downloads copy. Added saved pages per paste, insertion
+positions, page reorder/delete/restore, paste shortcuts, long-text layout, hidden
+text until page AI completes, explicit failure recovery, active-tab webpage hover
+and click help, shared user-marked learning status, local Qwen 4B/9B selection,
+chapter recognition and separately labeled editable AI section suggestions.
+Configured future agent-completed edits to commit and push feature/reader-v2.
+Browser integration QA passed with simulated AI responses; live local lookup and
+outline endpoints also passed. Kindle compatibility remains unverified.

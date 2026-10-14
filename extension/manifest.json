@@ -1,29 +1,32 @@
 {
   "manifest_version": 3,
-  "name": "AI Guided Reading Companion",
-  "version": "0.1.0",
-  "minimum_chrome_version": "116",
-  "description": "One-click full-page AI Reader with optional selected-passage guide.",
+  "name": "AI Reading Tutor",
+  "version": "0.3.0",
+  "description": "Saved book pages and bilingual word help on webpages, powered by local AI.",
   "permissions": [
-    "sidePanel",
     "activeTab",
     "scripting",
-    "storage",
-    "contextMenus"
+    "storage"
   ],
   "host_permissions": [
-    "http://127.0.0.1/*"
+    "http://127.0.0.1/*",
+    "https://en.wikipedia.org/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "action": {
-    "default_title": "Read with AI"
+    "default_title": "Read with AI",
+    "default_popup": "popup.html"
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
+  "background": {
+    "service_worker": "worker.js",
+    "type": "module"
   },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src http://127.0.0.1:8001"
+  "options_page": "reader.html",
+  "commands": {
+    "toggle-web": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Toggle bilingual word help on the active webpage"
+    }
   }
 }
