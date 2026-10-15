@@ -7,7 +7,7 @@ const assert=require('node:assert/strict');
  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  let requests=0;await page.route('http://127.0.0.1:8766/outline',r=>r.fulfill({json:{sections:[{index:0,title:'A royal bargain',level:2}]}}));
  await page.route('http://127.0.0.1:8766/analyze',async route=>{requests++;await new Promise(r=>setTimeout(r,350));const body=route.request().postDataJSON();await route.fulfill({json:{paragraphs:body.paragraphs.map(p=>({index:p.index,annotations:[]}))}});});
- await page.goto('http://127.0.0.1:8093/reader.html');await page.waitForSelector('#article p');
+ await page.goto('http://127.0.0.1:8093/reader.html');await page.waitForSelector('#article p');await page.locator('#settings-open').click();await page.locator('#reading-mode').selectOption('ai');await page.locator('#settings-dialog .close').click();
  await page.locator('#import-open').click();await page.locator('#import-title').fill('Rubicon QA');const raw=('A haughty tyrant demanded a fabulous price. The old woman vanished. ').repeat(65);await page.locator('#import-text').fill(raw);await page.locator('#import-submit').click();
  await page.waitForFunction(()=>document.getElementById('title').textContent==='Rubicon QA');
  assert.equal(await page.locator('#article').isVisible(),false);assert.equal(await page.locator('#article').textContent(),'');

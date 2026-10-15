@@ -35,3 +35,12 @@ chapter recognition and separately labeled editable AI section suggestions.
 Configured future agent-completed edits to commit and push feature/reader-v2.
 Browser integration QA passed with simulated AI responses; live local lookup and
 outline endpoints also passed. Kindle compatibility remains unverified.
+
+## 2026-10-15 — v0.3.1 fast Web lookup
+
+Default hover/click word help now uses the bundled local dictionary, with a
+120 ms hover delay and per-page result cache. AI is explicitly requested for
+contextual explanation and dictionary senses remain visible on AI failure.
+Restored the stopped Ollama service, added accurate health/error diagnostics,
+and changed the launcher to start Ollama when closed. Preserved opt-in AI page
+analysis. Offline, browser and regression checks passed; live AI recovered.

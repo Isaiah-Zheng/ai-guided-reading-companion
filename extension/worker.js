@@ -1,3 +1,4 @@
+import {dictionaryLookup} from './dictionary.js';
 import {extractArticle} from './extract.js';
 import {articleId} from './core.js';
 async function toggleWeb(tabId){await chrome.scripting.executeScript({target:{tabId},files:['web.js']});}
@@ -10,12 +11,13 @@ async function importWeb(tabId){
 const activeLookups=new Map();
 async function lookup(message){
  if(typeof message.word!=='string'||typeof message.context!=='string'||message.word.length>120||message.context.length>6000||!message.context.includes(message.word))throw Error('Select a word in readable text.');
+ if(!message.forceAI){const local=await dictionaryLookup(message.word);return local||{source:'missing',en:'No entry in the local dictionary.',zh:'本地词典暂无此词',value:'Not assessed',explanation:'You can ask the local AI for a contextual explanation.',example:''};}
  const {settings={},wordCache={}}=await chrome.storage.local.get(['settings','wordCache']);const model=settings.model||'qwen3.5:4b',key=JSON.stringify([model,message.word,message.context]);
- if(wordCache[key])return wordCache[key];
+ if(wordCache[key])return {...wordCache[key],source:'ai'};
  if(activeLookups.has(key))return activeLookups.get(key);
  const task=(async()=>{
   const response=await fetch('http://127.0.0.1:8766/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:message.word,context:message.context,model}),signal:AbortSignal.timeout(210000)});
-  const data=await response.json();if(!response.ok)throw Error(data.detail||'Local model unavailable. Start Local AI and Ollama.');
+  const data=await response.json();data.source='ai';if(!response.ok)throw Error(data.detail||'Local model unavailable. Start Local AI and Ollama.');
   const fresh=await chrome.storage.local.get('wordCache'),cache=fresh.wordCache||{};cache[key]=data;while(Object.keys(cache).length>128)delete cache[Object.keys(cache)[0]];await chrome.storage.local.set({wordCache:cache});return data;
  })();activeLookups.set(key,task);try{return await task;}finally{activeLookups.delete(key);}
 }

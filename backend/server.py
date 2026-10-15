@@ -36,13 +36,13 @@ def selected_model(payload):
         raise ValueError('Unsupported local model.')
     return model
 
-def local_request(path, payload=None):
+def local_request(path, payload=None, timeout=180):
     request = urllib.request.Request('http://127.0.0.1:11434' + path,
         data=json.dumps(payload, ensure_ascii=False).encode() if payload is not None else None,
         headers={'Content-Type': 'application/json'})
     # Local reading data must not be routed through an environment proxy.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=180) as response:
+    with opener.open(request, timeout=timeout) as response:
         return json.load(response)
 
 def output_schema(payload):
@@ -89,8 +89,18 @@ def ask_model(system, payload, model=None):
             output = json.loads(data['message']['content'])
             if not isinstance(output, dict): raise ValueError('Expected object')
             return output
-        except (urllib.error.URLError, ValueError, KeyError, TimeoutError):
-            raise BackendError('Cannot get a local AI answer. Open Ollama and check that the selected model is downloaded.') from None
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                raise BackendError(f'The selected model is missing. Run ollama pull {model}.') from None
+            raise BackendError('Ollama could not load or run this model. Try Qwen 4B and close other GPU applications.') from None
+        except (TimeoutError,):
+            raise BackendError('Ollama timed out. Try Qwen 4B or a shorter passage.') from None
+        except urllib.error.URLError as exc:
+            if isinstance(exc.reason, TimeoutError):
+                raise BackendError('Ollama timed out. Try Qwen 4B or a shorter passage.') from None
+            raise BackendError('Ollama is not running. Open Ollama or run Start Local AI. Dictionary lookup still works.') from None
+        except (ValueError, KeyError):
+            raise BackendError('Ollama returned an invalid answer. Retry the AI explanation.') from None
     if provider != 'openai':
         raise BackendError('AI_PROVIDER must be ollama or openai.')
     key = os.environ.get('OPENAI_API_KEY')
@@ -199,6 +209,20 @@ def outline(payload):
     return {'sections':sorted(sections,key=lambda x:x['index'])[:4]}
 
 
+
+def health_status():
+    provider=os.environ.get('AI_PROVIDER','ollama')
+    result={'ok':True,'provider':provider,'configured':True,'dictionary':'bundled in extension'}
+    if provider=='ollama':
+        try:
+            tags=local_request('/api/tags',timeout=2)
+            result.update(ollama_running=True,installed_models=[x.get('name') for x in tags.get('models',[])])
+        except (urllib.error.URLError,TimeoutError,ValueError):
+            result.update(ollama_running=False,installed_models=[])
+    else: result['configured']=bool(os.environ.get('OPENAI_API_KEY') and os.environ.get('OPENAI_MODEL'))
+    return result
+
+
 class Handler(BaseHTTPRequestHandler):
     def allowed(self):
         origin=self.headers.get('Origin','')
@@ -222,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
     def do_GET(self):
         if not self.allowed(): return self.respond(403,{'detail':'Origin not allowed.'})
-        if self.path=='/health': return self.respond(200,{'ok':True,'provider':os.environ.get('AI_PROVIDER','ollama'),'configured':os.environ.get('AI_PROVIDER','ollama')=='ollama' or bool(os.environ.get('OPENAI_API_KEY') and os.environ.get('OPENAI_MODEL'))})
+        if self.path=='/health': return self.respond(200,health_status())
         return self.respond(404,{'detail':'Not found.'})
     def do_POST(self):
         if not self.allowed(): return self.respond(403,{'detail':'Origin not allowed.'})

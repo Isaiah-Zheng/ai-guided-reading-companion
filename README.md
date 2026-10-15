@@ -119,3 +119,21 @@ lines are recognized automatically. Missing formatting can use AI suggested
 sections, clearly labeled separately from original text. Click a heading to edit
 its display label. Suggested sections can be disabled in Aa. Chapter numbering
 is never invented. Full raw pasted text remains saved unchanged.
+
+
+## v0.3.1 — local dictionary first
+
+Default reading mode is Local dictionary first. Bundled ECDICT word/form records
+provide English/Chinese senses, IPA and frequency-based value hints without a
+backend, Internet connection or Ollama. The dictionary is loaded by letter and
+includes inflection aliases. Its general senses are not sentence disambiguation.
+See extension/dictionary/LICENSE.txt for attribution. A missing entry is stated
+explicitly rather than silently starting AI.
+
+Web word cards and Reader word cards have **Explain in this context (AI)** for
+optional local-model help. The Aa reading-mode selector retains AI page analysis
+when desired; in that mode the existing wait-until-finished behavior remains.
+Start Local AI now starts the installed Ollama runtime if it is closed, then starts
+the Reader backend. Health reports whether Ollama is actually reachable and which
+models are installed. Errors distinguish a closed service, missing model, timeout,
+model failure and malformed output. Dictionary results stay usable on AI failure.

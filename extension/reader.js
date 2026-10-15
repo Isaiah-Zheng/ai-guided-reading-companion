@@ -1,3 +1,4 @@
+import {dictionaryLookup,dictionaryAnnotations} from './dictionary.js';
 import {articleId,localAnnotations,validateAnnotations,recordEncounter,viewDetailed} from './core.js';
 import {lexicon,sample} from './lexicon.js';
 import {makePage,migrateBook,currentPage,deletePage,restorePage,movePage} from './pages.js';
@@ -8,7 +9,8 @@ const storage={
  async remove(key){if(globalThis.chrome?.storage?.local)return chrome.storage.local.remove(key);const all=await this.all();delete all[key];localStorage.setItem('reading-tutor',JSON.stringify(all));}
 };
 const saved=await storage.all(),params=new URLSearchParams(location.search);
-let history=saved.history||{},settings={font:20,note:10,notes:true,density:'balanced',sections:true,model:'qwen3.5:4b',...saved.settings};
+let history=saved.history||{},settings={font:20,note:10,notes:true,density:'balanced',sections:true,readingMode:'dictionary',model:'qwen3.5:4b',...saved.settings};
+let explicitAI=false;
 let article=saved['article:'+params.get('article')],page,ready=false,enhanced=true,generation=0,saveTimer,importMode='new',activeWord,wordToken=0;
 if(!article){article={...structuredClone(sample),id:await articleId(sample.blocks),created:Date.now(),annotations:{},ai:false};article=saved['article:'+article.id]||article;}
 migrateBook(article);
@@ -17,10 +19,10 @@ async function persist(){await storage.set({['article:'+article.id]:article,hist
 function safeSave(){persist().catch(()=>{$('save-status').textContent='Could not save — keep your original text';});}
 function text(parent,tag,value,cls){const n=document.createElement(tag);n.textContent=value;if(cls)n.className=cls;parent.append(n);return n;}
 function action(parent,label,callback){const n=text(parent,'button',label);n.onclick=callback;return n;}
-function applySettings(){document.documentElement.style.setProperty('--font',settings.font+'px');document.documentElement.style.setProperty('--note',settings.note+'px');$('font-size').value=settings.font;$('note-size').value=settings.note;$('font-output').textContent=settings.font+'px';$('note-output').textContent=settings.note+'px';$('notes').checked=settings.notes;$('density').value=settings.density;$('model').value=settings.model;$('ai').checked=!!article.ai;$('suggest-sections').checked=settings.sections;}
+function applySettings(){document.documentElement.style.setProperty('--font',settings.font+'px');document.documentElement.style.setProperty('--note',settings.note+'px');$('font-size').value=settings.font;$('note-size').value=settings.note;$('font-output').textContent=settings.font+'px';$('note-output').textContent=settings.note+'px';$('notes').checked=settings.notes;$('density').value=settings.density;$('model').value=settings.model;$('ai').checked=!!article.ai;$('reading-mode').value=settings.readingMode;$('suggest-sections').checked=settings.sections;}
 function encounterSource(){return {id:article.id+':'+page.id,title:article.title,blocks:page.blocks,url:article.url};}
 function annotateLocal(index){page.annotations[index]||={};page.annotations[index].local||=localAnnotations(page.blocks[index].text,lexicon.filter(e=>e.kind!=='entity'||/\b(Rome|Roman|Rubicon|Pompey)\b/i.test(page.raw)));}
-function annotations(index){return validateAnnotations(page.blocks[index].text,page.annotations[index]?.ai||page.annotations[index]?.local||[]);}
+function annotations(index){return validateAnnotations(page.blocks[index].text,(settings.readingMode==='dictionary'?page.annotations[index]?.dictionary:page.annotations[index]?.ai)||page.annotations[index]?.local||[]);}
 function countWords(){$('word-count').textContent=Object.values(history).filter(w=>w.saved).length;}
 function render(){
  if(!ready)return;
@@ -52,8 +54,8 @@ async function loadPage(){
  $('reading-time').textContent=Math.max(1,Math.ceil(page.raw.split(/\s+/).length/220))+' min read';
  if(page.aiModel!==settings.model){page.annotations={};page.details={};delete page.outline;page.aiModel=settings.model;}
  try{
-  for(let index=0;index<page.blocks.length;index++)annotateLocal(index);
-  if(article.ai){
+  for(let index=0;index<page.blocks.length;index++){annotateLocal(index);if(settings.readingMode==='dictionary'&&page.blocks[index].type!=='heading'){page.annotations[index].dictionary=await dictionaryAnnotations(page.blocks[index].text,history);if(token!==generation)return;}}
+  if(article.ai&&settings.readingMode==='ai'){
    const target=page,model=settings.model,indexes=target.blocks.map((b,i)=>b.type==='heading'?null:i).filter(i=>i!==null);
    if(settings.sections&&!target.outline&&!target.blocks.some(b=>b.type==='heading')&&indexes.length>2){$('loading-message').textContent='Finding suggested section headings…';target.outline=await backend('/outline',{blocks:target.blocks.map((b,index)=>({index,text:b.text.slice(0,250)})).slice(0,40)},model);if(token!==generation)return;await persist();}
    for(let step=0;step<indexes.length;step++){
@@ -64,7 +66,7 @@ async function loadPage(){
     target.annotations[index].ai=validateAnnotations(target.blocks[index].text,record.annotations);await persist();
    }
   }
-  if(token!==generation)return;reveal();notice(article.ai?'Page ready · local AI annotations loaded.':'AI is off · local glossary only.');await persist();
+  if(token!==generation)return;reveal();notice(settings.readingMode==='dictionary'?'Page ready · local dictionary. Hover or click any word; AI is optional.':article.ai?'Page ready · local AI annotations loaded.':'AI is off · local glossary only.');await persist();
  }catch(error){if(token!==generation)return;$('loading-message').textContent='Could not finish this page. '+error.message;$('retry-page').hidden=false;$('read-offline').hidden=false;notice('Your pasted page is saved. Retry analysis when ready.');}
 }
 function reveal(){ready=true;$('loading').hidden=true;$('article').hidden=false;render();const current=page;requestAnimationFrame(()=>{if(page!==current)return;scrollTo(0,(page.progress||0)*Math.max(0,document.documentElement.scrollHeight-innerHeight));});}
@@ -88,6 +90,7 @@ function setMode(value){enhanced=value;$('enhanced').setAttribute('aria-pressed'
 $('enhanced').onclick=()=>setMode(true);$('original').onclick=()=>setMode(false);
 for(const id of ['font-size','note-size','notes','density'])$(id).oninput=async()=>{settings={...settings,font:Number($('font-size').value),note:Number($('note-size').value),notes:$('notes').checked,density:$('density').value};applySettings();render();await storage.set({settings});};
 $('model').onchange=async()=>{settings.model=$('model').value;await storage.set({settings});loadPage();};
+$('reading-mode').onchange=async()=>{settings.readingMode=$('reading-mode').value;await storage.set({settings});loadPage();};
 $('ai').onchange=async()=>{article.ai=$('ai').checked;await persist();loadPage();};
 $('suggest-sections').onchange=async()=>{settings.sections=$('suggest-sections').checked;await storage.set({settings});loadPage();};
 function entry(parent,title,subtitle){const row=text(parent,'div','','entry');const body=text(row,'div','');text(body,'p',title,'entry-title');text(body,'p',subtitle,'fine');return row;}
@@ -103,9 +106,12 @@ $('pages-open').onclick=()=>{showPages();$('pages-dialog').showModal();};
 $('history-open').onclick=async()=>{const list=$('history-list');list.replaceChildren();for(const book of Object.values(await storage.all()).filter(a=>a?.id&&(a.pages||a.blocks)).sort((a,b)=>b.created-a.created)){const row=entry(list,book.title,(book.pages?.length||1)+' saved page(s)');action(row,'Read',async()=>{clearTimeout(saveTimer);await persist();article=migrateBook(book);window.history.replaceState(null,'','?article='+book.id);$('history-dialog').close();loadPage();});}$('history-dialog').showModal();};
 function wordStatus(a){return history[a.lemma]?.status||(history[a.lemma]?.viewed?'Previously viewed':'New');}
 function statusButtons(a){$('word-status').replaceChildren();text($('word-status'),'p','Your status: '+wordStatus(a));for(const [label,status] of [['Learning','learning'],['Known','known']])action($('word-status'),label,async()=>{recordEncounter(history,a,encounterSource(),activeWord.index);history[a.lemma].status=status;history[a.lemma].saved=true;await persist();statusButtons(a);countWords();});}
-function openWord(a,index){activeWord={a,index,page,source:encounterSource()};wordToken++;$('word-title').textContent=a.word;$('word-history').textContent='Your status: '+wordStatus(a);$('word-ipa').textContent=[a.pos,a.ipa].filter(Boolean).join(' ');$('word-meaning').textContent=a.zh+' — '+(a.en||'');$('word-value').textContent='Learning value: '+(a.value||'Contextual reading support');$('word-details').open=false;$('word-detail-body').replaceChildren();$('knowledge').replaceChildren();statusButtons(a);$('word-dialog').showModal();}
+function openWord(a,index){explicitAI=false;activeWord={a,index,page,source:encounterSource()};wordToken++;$('word-title').textContent=a.word;$('word-history').textContent='Your status: '+wordStatus(a);$('word-ipa').textContent=[a.pos,a.ipa].filter(Boolean).join(' ');$('word-meaning').textContent=a.zh+' — '+(a.en||'');$('word-value').textContent='Learning value: '+(a.value||'Contextual reading support');$('word-details').open=false;$('word-detail-body').replaceChildren();$('knowledge').replaceChildren();statusButtons(a);
+ text($('knowledge'),'p',a.source==='dictionary'?'Local dictionary · general senses':'Reading support');
+ action($('knowledge'),'Explain in this context (AI)',async()=>{explicitAI=true;const selected=activeWord,token=++wordToken,body=$('word-detail-body');body.replaceChildren();$('word-details').open=true;text(body,'p','Loading local AI explanation…');try{const result=await backend('/lookup',{word:a.word,context:selected.page.blocks[index].text});if(token!==wordToken)return;body.replaceChildren();text(body,'p',result.en);text(body,'p',result.zh);text(body,'p',result.value);text(body,'p',result.explanation);if(result.example)text(body,'p','Example: '+result.example);$('word-details').open=true;}catch(error){if(token===wordToken){text($('knowledge'),'p',error.message+' The dictionary meaning above is still available.');}}});
+ $('word-dialog').showModal();}
 $('word-details').addEventListener('toggle',async()=>{
- if(!$('word-details').open||!activeWord)return;const selected=activeWord,{a,index}=selected,token=++wordToken,body=$('word-detail-body');viewDetailed(history,a,selected.source,index);await persist();countWords();body.replaceChildren();
+ if(!$('word-details').open||!activeWord||explicitAI)return;const selected=activeWord,{a,index}=selected,token=++wordToken,body=$('word-detail-body');viewDetailed(history,a,selected.source,index);await persist();countWords();body.replaceChildren();
  const key=a.lemma+':'+index+':'+a.start;let result=selected.page.details[key];
  if(!result&&a.detail)result={explanation:a.detail,example:a.example};
  if(!result&&article.ai){text(body,'p','Loading local explanation…');try{result=await backend('/detail',{word:a.word,context:selected.page.blocks[index].text});selected.page.details[key]=result;await persist();}catch(error){if(token===wordToken){body.replaceChildren();text(body,'p',error.message);}return;}}
