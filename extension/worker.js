@@ -1,3 +1,4 @@
+import {inferTopics,migrateHistory,recordLookup,setLearningStatus,removeLearningWord,recordReadingEncounter,statusLabel} from './learning.js';
 import {dictionaryLookup} from './dictionary.js';
 import {extractArticle} from './extract.js';
 import {articleId} from './core.js';
@@ -21,11 +22,33 @@ async function lookup(message){
   const fresh=await chrome.storage.local.get('wordCache'),cache=fresh.wordCache||{};cache[key]=data;while(Object.keys(cache).length>128)delete cache[Object.keys(cache)[0]];await chrome.storage.local.set({wordCache:cache});return data;
  })();activeLookups.set(key,task);try{return await task;}finally{activeLookups.delete(key);}
 }
+let learningWrites=Promise.resolve();
+function updateLearning(event,sender){
+ const task=learningWrites.then(async()=>{
+  const {history:stored={},settings={}}=await chrome.storage.local.get(['history','settings']),history=migrateHistory(stored);
+  if(event.action==='lookup'){
+   if(typeof event.context!=='string'||event.context.length>12000||typeof event.a?.word!=='string'||event.a.word.length>120)throw Error('Invalid lookup');
+   recordLookup(history,event.a,event.context,{...event.options,interests:settings.interests||[]});
+  }else if(event.action==='status')setLearningStatus(history,event.lemma,event.status);
+  else if(event.action==='remove')removeLearningWord(history,event.lemma);
+  else if(event.action==='encounter')recordReadingEncounter(history,event.lemma,event.context,event.options);
+  else throw Error('Invalid learning action');
+  await chrome.storage.local.set({history});return {ok:true,history};
+ });learningWrites=task.catch(()=>{});return task;
+}
 chrome.runtime.onMessage.addListener((message,sender,respond)=>{
  (async()=>{
   if(message.type==='lookup')return {data:await lookup(message)};
-  if(message.type==='word-viewed'){const {history={}}=await chrome.storage.local.get('history');const lemma=message.word.toLowerCase();history[lemma]={...history[lemma],lemma,word:message.word,viewed:true,lastViewed:Date.now(),encounters:history[lemma]?.encounters||[],firstSource:history[lemma]?.firstSource||sender.tab?.title||'Web reading'};await chrome.storage.local.set({history});return {ok:true};}
-  if(message.type==='word-status'){if(!['known','learning'].includes(message.status))throw Error('Invalid status');const {history={}}=await chrome.storage.local.get('history');const lemma=message.word.toLowerCase();history[lemma]={...history[lemma],lemma,word:message.word,zh:message.zh||history[lemma]?.zh||'',status:message.status,saved:true,lastViewed:Date.now(),encounters:history[lemma]?.encounters||[],firstSource:history[lemma]?.firstSource||sender.tab?.title||'Web reading'};await chrome.storage.local.set({history});return {ok:true};}
+  if(message.type==='learning-event')return updateLearning(message,sender);
+  if(message.type==='word-viewed'){
+   const a=await dictionaryLookup(message.word)||{word:message.word,lemma:message.word,zh:''};
+   return updateLearning({action:'lookup',a,context:message.context||message.word,options:{source:sender.tab?.url||message.url||'',title:sender.tab?.title||message.title||'Web reading',topics:inferTopics(message.title||sender.tab?.title||'',message.topicText||message.context||'')}},sender);
+  }
+  if(message.type==='word-status'){
+   const a=await dictionaryLookup(message.word)||{word:message.word,lemma:message.word,zh:message.zh||''};
+   await updateLearning({action:'lookup',a,context:message.context||message.word,options:{source:sender.tab?.url||'',manual:false}},sender);
+   return updateLearning({action:'status',lemma:a.lemma,status:message.status},sender);
+  }
   if(sender.tab)throw Error('Unsupported webpage request.');
   if(message.type==='library'){await chrome.tabs.create({url:chrome.runtime.getURL('reader.html?library=1')});return {ok:true};}
   if(message.type==='toggle-web'){await toggleWeb(message.tabId);return {ok:true};}

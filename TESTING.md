@@ -41,3 +41,28 @@ Legacy cloud backend tests are retained in test_cloud_backend.py.
 - Missing-model, closed-service and malformed-answer messages have separate tests.
 - Bundled ECDICT includes 759,781 word/form records, loaded by letter. The source
   CSV is not committed; compacted licensed entries and attribution are bundled.
+
+
+## v0.4.0 click-led vocabulary · 2026-10-15
+
+- 28 JavaScript tests pass, including explicit dictionary form normalization,
+  function-word filtering, click eligibility, phrase spans, state transitions,
+  historical migration, same-context/day evidence, manual removal, and concurrent
+  Reader/Web mutations through the service worker.
+- 19 Python tests pass using isolated dependencies; backend source is unchanged.
+- tests/learning-browser.cjs passes in isolated headless Chrome: optional interests,
+  dictionary-only first-click collection, every matching occurrence, repeat-click
+  deduplication, visible encounters and reload deduplication, recall pass/failure,
+  manual return from known, function-word exclusion, phrase selection, persistence,
+  paste insertion, page delete/restore, desktop margin card, narrow viewport card,
+  no AI dependency, hyperlink hover, and normal hyperlink navigation.
+- tests/offline-browser.cjs and tests/v3-browser-check.cjs both pass. The latter
+  retains long-paste, loading gate, AI failure/recovery, page ordering/navigation,
+  and mobile-width coverage. AI responses in that suite are simulated.
+- Browser scripts accept PLAYWRIGHT_MODULE; offline/v3 scripts also accept
+  READER_TEST_URL to avoid collisions with a pre-existing localhost:8093 service.
+- Screenshots were visually inspected. No live installed Chrome profile or personal
+  reading data was used. Actual extension installation/reload remains a user-side
+  step because this environment cannot write the Downloads checkout.
+- No real-model quality/latency claim is made for this release: contextual model
+  handling is unchanged. See docs/learning-v0.4.md for scope and limitations.

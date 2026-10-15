@@ -44,3 +44,20 @@ contextual explanation and dictionary senses remain visible on AI failure.
 Restored the stopped Ollama service, added accurate health/error diagnostics,
 and changed the launcher to start Ollama when closed. Preserved opt-in AI page
 analysis. Offline, browser and regression checks passed; live AI recovered.
+
+
+## 2026-10-15 · v0.4.0 click-led learning
+
+Implemented interest/topic-based click collection, consolidation/check/known
+states, repeat lookup signals, Reader encounter evidence with separate raw
+locations, explicit recall, manual exclusion/keeping, compact nonmodal word cards,
+Reader phrase lookup, explicit dictionary form normalization, restored micro-notes,
+and link hover without intercepting navigation. Worker serializes vocabulary writes;
+book saves preserve independent history. Removed Reader's duplicated Web overlay
+and visible percentage while retaining reading position.
+
+Validated 28 JS tests, 19 backend tests, new learning browser suite, offline suite,
+and existing v3 workflows. Work is based on clean Downloads commit 6524fa3 in an
+isolated writable checkout; the installed extension folder is unchanged. Delivery
+requires fast-forward pulling feature/reader-v2 in that original folder and
+reloading the same Chrome extension.
