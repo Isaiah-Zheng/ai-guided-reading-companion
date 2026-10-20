@@ -1,0 +1,19 @@
+# Local capture output and generated reading material
+captures/
+*.epub
+*.mobi
+*.azw*
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# Local Python state and credentials
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+cookies*.json
+session*.json
